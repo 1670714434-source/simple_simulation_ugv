@@ -73,12 +73,12 @@ class UGV:
         # 进行归一化
         position = np.array([self.tx - self.x, self.ty - self.y])
         #target = np.array([self.get_distance() / self.init_distance])
-        velocity = np.array([self.v,self.w])
+        #velocity = np.array([self.v,self.w])
         angle = np.array([self.get_deflection_angle() / 180])
         #sensor_data = np.array(self.get_distance_sensors_data()) / 20
 
         state = np.append(position, angle)
-        state = np.append(state, velocity)
+        #state = np.append(state, velocity)
 
         return state
 
