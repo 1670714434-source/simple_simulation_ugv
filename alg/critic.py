@@ -17,10 +17,10 @@ class Critic(nn.Module):
     def forward(self, state):
         # 按维数1拼接(按维数1拼接为横着拼，按维数0拼接为竖着拼)
         x = state
-        x = F.relu(self.linear1(x))
-        x = F.relu(self.linear2(x))
-        x = F.relu(self.linear3(x))
-        x = F.relu(self.linear4(x))
+        x = torch.tanh(self.linear1(x))
+        x = torch.tanh(self.linear2(x))
+        x = torch.tanh(self.linear3(x))
+        x = torch.tanh(self.linear4(x))
         q = self.linear5(x)
         return q
 
