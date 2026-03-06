@@ -78,7 +78,7 @@ class UGV:
         #sensor_data = np.array(self.get_distance_sensors_data()) / 20
 
         state = np.append(position, angle)
-        #state = np.append(state, velocity)
+        # state = np.append(state, velocity)
 
         return state
 
