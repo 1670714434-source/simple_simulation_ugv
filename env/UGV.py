@@ -143,7 +143,12 @@ class UGV:
 if __name__ == '__main__':
     env = UGV()
     state = env.get_state()
-    print(state)
-    action = np.array([1.0, 0.5])
-    next_state, reward, done = env.step(action)
-    print(next_state, reward, done)
+    print(f"Initial State : {state}")
+
+    action = np.array([100.0, 1])
+
+    # 模拟运行 3 步，观察 Y 值的变化
+    for i in range(3):
+        next_state, reward, done = env.step(action)
+        print(f"Step {i+1} Rep    : x={env.x:.2f}, y={env.y:.2f}, yaw={env.yaw:.2f}")
+        print(f"Step {i+1} State  : {next_state}")
