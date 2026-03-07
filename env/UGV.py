@@ -13,15 +13,23 @@ class UGV:
         self.w = 0
 
 
-        self.bound_x = [0, 50]
-        self.bound_y = [0, 50]
+        self.bound_x = [0, 80]
+        self.bound_y = [0, 80]
 
-        self.target_x = [0, 50]
-        self.target_y = [0, 50]
+        self.target_x = [0, 80]
+        self.target_y = [0, 80]
 
         self.d_safe = 5
 
+
+
         self.tx, self.ty= self.generate_target()
+
+        ##################定义领导者####################
+        self.leader_x, self.leader_y = self.generate_target()
+        self.leader_yaw = 0  # 领导者初始航向角
+        self.leader_v = 3    # 领导者速度
+
         self.init_distance = self.get_distance()
 
         self.obstacle = [20,30]
@@ -37,6 +45,32 @@ class UGV:
         ty = np.random.rand() * (self.target_y[1] - self.target_y[0]) + self.target_y[0]
 
         return tx, ty
+
+    def update_leader(self, dt):
+        """
+        更新领导者位置：随机游走
+        """
+        # 领导者策略：随机游走 (随机改变航向)
+        # 随机转向范围：[-1.0, 1.0] rad/s * dt
+        self.leader_yaw += np.random.uniform(-1.0, 1.0) * dt
+        self.leader_v += np.random.uniform(-1.0, 1.0) * dt
+        # 计算新位置
+        self.leader_x += self.leader_v * math.cos(self.leader_yaw) * dt
+        self.leader_y += self.leader_v * math.sin(self.leader_yaw) * dt
+
+        # 简单的边界限制，防止跑出地图
+        # 如果超出边界，不仅要截断，最好让它掉头，避免卡在边缘
+        if self.leader_x < self.bound_x[0] or self.leader_x > self.bound_x[1]:
+            self.leader_yaw = math.pi - self.leader_yaw  # 水平反射
+            self.leader_x = np.clip(self.leader_x, self.bound_x[0], self.bound_x[1])
+
+        if self.leader_y < self.bound_y[0] or self.leader_y > self.bound_y[1]:
+            self.leader_yaw = -self.leader_yaw  # 垂直反射
+            self.leader_y = np.clip(self.leader_y, self.bound_y[0], self.bound_y[1])
+
+        # 将目标点(tx, ty) 实时更新为领导者位置
+        self.tx = self.leader_x
+        self.ty = self.leader_y
 
     def get_distance(self):
         return math.sqrt((self.x - self.tx) ** 2 + (self.y - self.ty) ** 2)
@@ -83,14 +117,18 @@ class UGV:
         return state
 
     def step(self, action):
+        dt = 0.1
+
+        # 1. 更新领导者位置 (目标动起来)
+        self.update_leader(dt)
+
         # 保存上一时刻的距离，用于计算进度奖励
         prev_distance = self.get_distance()
 
         self.v = action[0]
         self.w = action[1]
 
-        # 运动学更新 (dt = 0.1)
-        dt = 0.1
+        # 运动学更新
         self.x += self.v * math.cos(self.yaw) * dt
         self.y += self.v * math.sin(self.yaw) * dt
         self.yaw += self.w * dt
@@ -101,15 +139,12 @@ class UGV:
         # 初始化奖励和结束标志
         reward = 0
         done = False
-        # 1. 到达目标奖励
-        if curr_distance <= 5.0:
-            reward += 100
-            done = True
 
-        # 2. 碰撞惩罚
-        elif self.has_collided():
+        # 1. 碰撞惩罚
+        if self.has_collided():
             reward -= 100
             done = True
+
 
         # 3. 越界惩罚
         elif self.x < self.bound_x[0] or self.x > self.bound_x[1] or \

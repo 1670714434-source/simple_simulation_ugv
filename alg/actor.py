@@ -23,13 +23,13 @@ class Actor(nn.Module):
         x = torch.tanh(self.linear1(x))
         x = torch.tanh(self.linear2(x))
         action = torch.tanh(self.linear3(x))
-
+        
         # v: [-1, 1] -> [0, max_v] (只允许前进)
         v = (action[:, 0:1] + 1) / 2 * self.max_v
-
+        
         # w: [-1, 1] -> [-max_w, max_w] (允许左右转向)
         w = action[:, 1:2] * self.max_w
-
+        
         return torch.cat([v, w], dim=1)
 
 

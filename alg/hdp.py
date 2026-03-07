@@ -14,10 +14,12 @@ from torch.utils.tensorboard import SummaryWriter
 class HDP:
     def __init__(self,path):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.critic = Critic(3).to(self.device).to(self.device)
+        self.critic = Critic(3).to(self.device)
         self.actor = Actor(3, 2).to(self.device)
+
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=0.0005)
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=0.0005)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=0.0001)
+
         self.soft_tau = 0.01  # 软更新率
         self.gamma = 0.98  # 折扣率
         self.criterion = torch.nn.MSELoss()
@@ -32,10 +34,53 @@ class HDP:
         action = action.detach().cpu().squeeze(0).numpy()
         return action
 
-    def update(self, state, action, next_state):
+    def update(self, state, action, next_state, reward, done):
+        # 转换为 Tensor 格式
+        # 注意: action 传入时是 numpy array，需要转 tensor
+        action_tensor = torch.FloatTensor(action).unsqueeze(0).to(self.device).detach() # 输入的action是采样动作，不需要梯度
+
+        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+        next_state = torch.FloatTensor(next_state).unsqueeze(0).to(self.device)
+        reward = torch.FloatTensor([reward]).unsqueeze(0).to(self.device)
+        done = torch.FloatTensor([done]).unsqueeze(0).to(self.device)
 
 
-        return
+        # ----------------------
+        # 2. Critic (评价网络) 更新
+        # ----------------------
+
+        # 计算目标价值 (Bellman Target): y = r + gamma * V(s_next)
+        # 使用 no_grad() 是因为我们不希望梯度通过目标值反向传播给 Critic target (半梯度方法)
+        with torch.no_grad():
+            next_value = self.critic(next_state)
+            target_value = reward + self.gamma * next_value * (1 - done)
+
+        # 计算当前状态的预测价值: V(s)
+        current_value = self.critic(state)
+
+        # 计算贝尔曼误差 (Loss): MSE(Prediction, Target)
+        critic_loss = self.criterion(current_value, target_value)
+
+        # 梯度下降更新 Critic 参数
+        self.critic_optimizer.zero_grad()
+        critic_loss.backward()
+        self.critic_optimizer.step()
+
+        # ----------------------
+        # 3. Actor (执行网络) 更新
+        # ----------------------
+
+
+        # Actor 的目标是最大化未来的价值 V(s_next_pred)
+        # 因此 loss = -V(s_next_pred)
+        actor_loss = - self.critic(next_state)
+
+        # 梯度下降更新 Actor 参数
+        self.actor_optimizer.zero_grad()
+        actor_loss.backward()
+        self.actor_optimizer.step()
+
+        return critic_loss.item(), actor_loss.item()
 
 
     def save(self, path):
