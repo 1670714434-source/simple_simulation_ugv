@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class Critic(nn.Module):
-    def __init__(self, n_states, init_w=3e-3):
+    def __init__(self, n_states, n_actions, init_w=3e-3):
         super(Critic, self).__init__()
-        self.linear1 = nn.Linear(n_states, 256)
+        self.linear1 = nn.Linear(n_states + n_actions, 256)
         self.linear2 = nn.Linear(256, 256)
         self.linear3 = nn.Linear(256, 256)
         self.linear4 = nn.Linear(256, 128)
@@ -14,9 +14,9 @@ class Critic(nn.Module):
         self.linear5.weight.data.uniform_(-init_w, init_w)
         self.linear5.bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, state):
+    def forward(self, state, action):
         # 按维数1拼接(按维数1拼接为横着拼，按维数0拼接为竖着拼)
-        x = state
+        x = torch.cat([state, action], dim=1)
         x = torch.tanh(self.linear1(x))
         x = torch.tanh(self.linear2(x))
         x = torch.tanh(self.linear3(x))

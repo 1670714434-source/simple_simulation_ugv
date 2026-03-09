@@ -12,9 +12,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 class HDP:
-    def __init__(self,path):
+    def __init__(self,path, env : UGV):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.critic = Critic(3).to(self.device)
+        self.critic = Critic(3, 2).to(self.device)
         self.actor = Actor(3, 2).to(self.device)
 
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=0.0005)
@@ -24,7 +24,7 @@ class HDP:
         self.gamma = 0.98  # 折扣率
         self.criterion = torch.nn.MSELoss()
         self.path = path
-        self.env = UGV()
+        self.env = env
     # 变成二维tensor，[1,3]，因为一维的标量不能做tensor的乘法，actor中第一层的weight形状为[3,512](标量也可以做乘法)
 
     def choose_action(self, state):
@@ -34,12 +34,16 @@ class HDP:
         action = action.detach().cpu().squeeze(0).numpy()
         return action
 
-    def update(self, state, action, next_state, reward, done):
+    def update(self):
         # 转换为 Tensor 格式
         # 注意: action 传入时是 numpy array，需要转 tensor
-        action_tensor = torch.FloatTensor(action).unsqueeze(0).to(self.device).detach() # 输入的action是采样动作，不需要梯度
 
+        state = self.env.get_state()
+        action = self.choose_action(state)
+        next_state, reward, done = self.env.step(action)
+ 
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+        action = self.actor(state).to(self.device)  # Actor 输出的 action 作为 Critic 的输入
         next_state = torch.FloatTensor(next_state).unsqueeze(0).to(self.device)
         reward = torch.FloatTensor([reward]).unsqueeze(0).to(self.device)
         done = torch.FloatTensor([done]).unsqueeze(0).to(self.device)
@@ -52,11 +56,11 @@ class HDP:
         # 计算目标价值 (Bellman Target): y = r + gamma * V(s_next)
         # 使用 no_grad() 是因为我们不希望梯度通过目标值反向传播给 Critic target (半梯度方法)
         with torch.no_grad():
-            next_value = self.critic(next_state)
+            next_value = self.critic(next_state, self.actor(next_state).to(self.device))
             target_value = reward + self.gamma * next_value * (1 - done)
 
         # 计算当前状态的预测价值: V(s)
-        current_value = self.critic(state)
+        current_value = self.critic(state, action)
 
         # 计算贝尔曼误差 (Loss): MSE(Prediction, Target)
         critic_loss = self.criterion(current_value, target_value)
@@ -73,7 +77,7 @@ class HDP:
 
         # Actor 的目标是最大化未来的价值 V(s_next_pred)
         # 因此 loss = -V(s_next_pred)
-        actor_loss = - self.critic(next_state)
+        actor_loss = - self.critic(next_state, self.actor(next_state).to(self.device))
 
         # 梯度下降更新 Actor 参数
         self.actor_optimizer.zero_grad()
