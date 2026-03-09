@@ -135,6 +135,16 @@ class UGV:
             return True
         return False
 
+    def reset(self):
+        self.x = 0
+        self.y = 0
+        self.yaw = 0
+
+        self.v = 0
+        self.w = 0
+
+        self.tx, self.ty= self.generate_target()
+
 if __name__ == '__main__':
     env = UGV()
     state = env.get_state()

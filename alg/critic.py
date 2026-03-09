@@ -41,13 +41,14 @@ if __name__ == '__main__':
     print(f"State dimension from UGV env: {n_states}")
 
     # 2. 初始化 Critic 网络
-    critic = Critic(n_states)
+    critic = Critic(n_states, env.action_space.shape[0])
     print("\nCritic Network Structure:")
     print(critic)
 
     # 3. 测试单个状态的前向传播
     state_tensor = torch.FloatTensor(state).unsqueeze(0)  # 增加 batch 维度 [1, n_states]
-    value = critic(state_tensor)
+    action_tensor = torch.randn(1, env.action_space.shape[0])  # 随机动作
+    value = critic(state_tensor, action_tensor)
 
     print(f"\nTest with initial state:")
     print(f"Input state: {state}")
@@ -56,8 +57,7 @@ if __name__ == '__main__':
     # 4. 测试 Batch 输入
     batch_size = 4
     dummy_batch = torch.randn(batch_size, n_states)
-    batch_output = critic(dummy_batch)
-
+    batch_output = critic(dummy_batch, torch.randn(batch_size, env.action_space.shape[0]))
     print(f"\nTest with random batch (batch_size={batch_size}):")
     print(f"Input shape: {dummy_batch.shape}")
     print(f"Output shape: {batch_output.shape}")

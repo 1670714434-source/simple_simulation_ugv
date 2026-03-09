@@ -77,7 +77,7 @@ class HDP:
 
         # Actor 的目标是最大化未来的价值 V(s_next_pred)
         # 因此 loss = -V(s_next_pred)
-        actor_loss = - self.critic(next_state, self.actor(next_state).to(self.device))
+        actor_loss = - self.critic(state, self.actor(state).to(self.device))
 
         # 梯度下降更新 Actor 参数
         self.actor_optimizer.zero_grad()
